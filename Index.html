@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>String Art Circle</title>
+<style>
+    body { text-align: center; font-family: Arial, sans-serif; margin-top: 30px; }
+    canvas { background-color: #fff; border: 1px solid #000; margin-bottom: 20px; }
+    button { font-size: 18px; padding: 8px 16px; margin: 5px; border: none; color: white; cursor: pointer; }
+    #nextBtn { background-color: green; }
+    #prevBtn { background-color: red; }
+    #playPauseBtn { background-color: gray; }
+    #counter { font-size: 20px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+    <div id="counter">Step 1 of 4000</div>
+    <canvas id="circleCanvas" width="800" height="800"></canvas><br>
+    <button id="prevBtn" onclick="prevStep()">Previous</button>
+    <button id="nextBtn" onclick="nextStep()">Next</button>
+    <button id="playPauseBtn">Play</button>
+
+    <script src="numbers.js"></script>
+
+    <script>
+        const canvas = document.getElementById('circleCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 350;
+        const totalPins = 288;
+
+        let currentIndex = 0;
+        const counter = document.getElementById('counter');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        let isPlaying = false;
+        let intervalId = null;
+        const stepDelay = 10;
+
+        // Pin coordinates starting from top
+        const pins = [];
+        for (let i = 0; i < totalPins; i++) {
+            const angle = (i / totalPins) * 2 * Math.PI - Math.PI/2; // start at top
+            pins.push({
+                x: centerX + radius * Math.cos(angle),
+                y: centerY + radius * Math.sin(angle)
+            });
+        }
+
+        function drawPins() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'black';
+            for (let i = 0; i < pins.length; i++) {
+                ctx.beginPath();
+                ctx.arc(pins[i].x, pins[i].y, 1.5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        function drawLines() {
+            if (currentIndex < 1) return;
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 0.3;
+            for (let i = 1; i <= currentIndex; i++) {
+                // pin indices modulo totalPins
+                let startPin = numbers[i - 1] % totalPins;
+                let endPin = numbers[i] % totalPins;
+
+                // Rotate pins so pin 0 of numbers array is at top
+                startPin = (startPin + totalPins/4) % totalPins;
+                endPin = (endPin + totalPins/4) % totalPins;
+
+                ctx.beginPath();
+                ctx.moveTo(pins[startPin].x, pins[startPin].y);
+                ctx.lineTo(pins[endPin].x, pins[endPin].y);
+                ctx.stroke();
+            }
+        }
+
+        function updateDisplay() {
+            drawPins();
+            drawLines();
+            counter.textContent = `Step ${currentIndex + 1} of ${numbers.length}`;
+        }
+
+        function nextStep() {
+            if (currentIndex < numbers.length - 1) {
+                currentIndex++;
+                updateDisplay();
+            } else {
+                pause();
+            }
+        }
+
+        function prevStep() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+            }
+        }
+
+        function play() {
+            if (!isPlaying) {
+                isPlaying = true;
+                playPauseBtn.textContent = 'Pause';
+                intervalId = setInterval(nextStep, stepDelay);
+            }
+        }
+
+        function pause() {
+            if (isPlaying) {
+                isPlaying = false;
+                playPauseBtn.textContent = 'Play';
+                clearInterval(intervalId);
+            }
+        }
+
+        playPauseBtn.addEventListener('click', () => {
+            if (isPlaying) pause();
+            else play();
+        });
+
+        updateDisplay();
+    </script>
+</body>
+</html>
