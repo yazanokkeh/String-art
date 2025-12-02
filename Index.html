@@ -4,21 +4,61 @@
 <meta charset="UTF-8">
 <title>String Art Circle</title>
 <style>
-    body { text-align: center; font-family: Arial, sans-serif; margin-top: 30px; }
-    canvas { background-color: #fff; border: 1px solid #000; margin-bottom: 20px; }
-    button { font-size: 18px; padding: 8px 16px; margin: 5px; border: none; color: white; cursor: pointer; }
+    body { 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        height: 100vh; 
+        font-family: Arial, sans-serif; 
+        margin: 0; 
+        overflow: hidden;
+    }
+    #controls { 
+        margin-left: 15px; 
+        text-align: left;
+        width: 150px;
+    }
+
+    canvas { 
+        background-color: #fff; 
+        border: 1px solid #000; 
+    }
+
+    button { 
+        font-size: 14px; 
+        padding: 6px 10px; 
+        margin: 5px 0; 
+        border: none; 
+        color: white; 
+        cursor: pointer; 
+        width: 100%;
+        border-radius: 6px;
+    }
+
     #nextBtn { background-color: green; }
     #prevBtn { background-color: red; }
     #playPauseBtn { background-color: gray; }
-    #counter { font-size: 20px; margin-bottom: 10px; }
+    #previewBtn { background-color: blue; }
+
+    #counter, #moveDetails { 
+        font-size: 14px; 
+        margin-bottom: 8px;
+    }
 </style>
 </head>
 <body>
-    <div id="counter">Step 1 of 4000</div>
-    <canvas id="circleCanvas" width="800" height="800"></canvas><br>
-    <button id="prevBtn" onclick="prevStep()">Previous</button>
-    <button id="nextBtn" onclick="nextStep()">Next</button>
-    <button id="playPauseBtn">Play</button>
+
+    <canvas id="circleCanvas" width="650" height="650"></canvas>
+
+    <div id="controls">
+        <div id="counter">Step 1 of 4000</div>
+        <div id="moveDetails">0 → 0</div>
+
+        <button id="prevBtn" onclick="prevStep()">Previous</button>
+        <button id="nextBtn" onclick="nextStep()">Next</button>
+        <button id="playPauseBtn">Play</button>
+        <button id="previewBtn" onclick="previewAll()">Preview</button>
+    </div>
 
     <script src="numbers.js"></script>
 
@@ -29,23 +69,25 @@
         const height = canvas.height;
         const centerX = width / 2;
         const centerY = height / 2;
-        const radius = 350;
+        const radius = 310;
         const totalPins = 288;
 
         let currentIndex = 0;
-        const counter = document.getElementById('counter');
-        const playPauseBtn = document.getElementById('playPauseBtn');
         let isPlaying = false;
         let intervalId = null;
         const stepDelay = 10;
 
-        // Pin coordinates starting from top
+        const counter = document.getElementById('counter');
+        const moveDetails = document.getElementById('moveDetails');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+
+        // Corrected pin positions: flipped X-axis to fix mirrored image
         const pins = [];
         for (let i = 0; i < totalPins; i++) {
-            const angle = (i / totalPins) * 2 * Math.PI - Math.PI/2; // start at top
+            const angle = (i / totalPins) * 2 * Math.PI + Math.PI;
             pins.push({
-                x: centerX + radius * Math.cos(angle),
-                y: centerY + radius * Math.sin(angle)
+                x: centerX - radius * Math.cos(angle), // flipped X-axis
+                y: centerY - radius * Math.sin(angle)  // keep Y inverted for upright image
             });
         }
 
@@ -59,19 +101,27 @@
             }
         }
 
-        function drawLines() {
-            if (currentIndex < 1) return;
+        function drawLines(limit) {
+            ctx.lineWidth = 0.2;
+
+            // Draw all previous lines in black
             ctx.strokeStyle = 'black';
-            ctx.lineWidth = 0.3;
-            for (let i = 1; i <= currentIndex; i++) {
-                // pin indices modulo totalPins
+            for (let i = 1; i < limit; i++) {
                 let startPin = numbers[i - 1] % totalPins;
                 let endPin = numbers[i] % totalPins;
 
-                // Rotate pins so pin 0 of numbers array is at top
-                startPin = (startPin + totalPins/4) % totalPins;
-                endPin = (endPin + totalPins/4) % totalPins;
+                ctx.beginPath();
+                ctx.moveTo(pins[startPin].x, pins[startPin].y);
+                ctx.lineTo(pins[endPin].x, pins[endPin].y);
+                ctx.stroke();
+            }
 
+            // Draw current step in red
+            if (limit > 0 && limit < numbers.length) {
+                let startPin = numbers[limit - 1] % totalPins;
+                let endPin = numbers[limit] % totalPins;
+
+                ctx.strokeStyle = 'red';
                 ctx.beginPath();
                 ctx.moveTo(pins[startPin].x, pins[startPin].y);
                 ctx.lineTo(pins[endPin].x, pins[endPin].y);
@@ -81,40 +131,39 @@
 
         function updateDisplay() {
             drawPins();
-            drawLines();
+            drawLines(currentIndex);
+
             counter.textContent = `Step ${currentIndex + 1} of ${numbers.length}`;
+
+            let startPin = numbers[currentIndex] % totalPins;
+            let nextPin = (currentIndex + 1 < numbers.length) ?
+                          numbers[currentIndex + 1] % totalPins : startPin;
+
+            moveDetails.textContent = `${startPin} → ${nextPin}`;
         }
 
         function nextStep() {
             if (currentIndex < numbers.length - 1) {
                 currentIndex++;
-                updateDisplay();
-            } else {
-                pause();
-            }
+            } else pause();
+            updateDisplay();
         }
 
         function prevStep() {
-            if (currentIndex > 0) {
-                currentIndex--;
-                updateDisplay();
-            }
+            if (currentIndex > 0) currentIndex--;
+            updateDisplay();
         }
 
         function play() {
-            if (!isPlaying) {
-                isPlaying = true;
-                playPauseBtn.textContent = 'Pause';
-                intervalId = setInterval(nextStep, stepDelay);
-            }
+            isPlaying = true;
+            playPauseBtn.textContent = 'Pause';
+            intervalId = setInterval(nextStep, stepDelay);
         }
 
         function pause() {
-            if (isPlaying) {
-                isPlaying = false;
-                playPauseBtn.textContent = 'Play';
-                clearInterval(intervalId);
-            }
+            isPlaying = false;
+            playPauseBtn.textContent = 'Play';
+            clearInterval(intervalId);
         }
 
         playPauseBtn.addEventListener('click', () => {
@@ -122,7 +171,14 @@
             else play();
         });
 
+        function previewAll() {
+            pause();
+            currentIndex = numbers.length - 1;
+            updateDisplay();
+        }
+
         updateDisplay();
     </script>
+
 </body>
 </html>
