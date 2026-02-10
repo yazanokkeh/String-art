@@ -2,183 +2,212 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>String Art Circle</title>
+<title>String Art Pro Navigator</title>
 <style>
     body { 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        height: 100vh; 
-        font-family: Arial, sans-serif; 
-        margin: 0; 
-        overflow: hidden;
+        display: flex; justify-content: center; align-items: center; 
+        height: 100vh; margin: 0; background-color: #121212; font-family: 'Segoe UI', sans-serif;
+        color: white;
     }
-    #controls { 
-        margin-left: 15px; 
-        text-align: left;
-        width: 150px;
-    }
-
+    #container { display: flex; background: #2a2a2a; padding: 20px; border-radius: 15px; border: 1px solid #444; }
+    
+    /* High-Resolution Canvas Container */
     canvas { 
-        background-color: #fff; 
-        border: 1px solid #000; 
+        background-color: white; 
+        border-radius: 5px; 
+        box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        /* Visual size is 750px, but internal resolution is 2000px */
+        width: 750px; 
+        height: 750px; 
     }
+    
+    #controls { padding: 0 20px; width: 260px; display: flex; flex-direction: column; justify-content: center; }
+    
+    .stat-box { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; border-bottom: 4px solid #f39c12; }
+    #moveDetails { font-size: 54px; font-weight: bold; color: #f39c12; margin: 10px 0; font-family: 'Courier New', monospace; }
+    
+    .input-group { margin-bottom: 15px; text-align: center; }
+    input { width: 80px; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; text-align: center; }
+
+    .progress-bar { width: 100%; background: #333; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px;}
+    #progressFill { width: 0%; height: 100%; background: #f39c12; }
 
     button { 
-        font-size: 14px; 
-        padding: 6px 10px; 
-        margin: 5px 0; 
-        border: none; 
-        color: white; 
-        cursor: pointer; 
-        width: 100%;
-        border-radius: 6px;
+        width: 100%; padding: 15px; margin: 8px 0; border: none; border-radius: 8px;
+        font-weight: bold; cursor: pointer; color: #fff; transition: 0.2s; text-transform: uppercase;
     }
-
-    #nextBtn { background-color: green; }
-    #prevBtn { background-color: red; }
-    #playPauseBtn { background-color: gray; }
-    #previewBtn { background-color: blue; }
-
-    #counter, #moveDetails { 
-        font-size: 14px; 
-        margin-bottom: 8px;
-    }
+    #nextBtn { background: #f39c12; color: #000; font-size: 20px; height: 80px; box-shadow: 0 4px 0 #d35400; }
+    #nextBtn:active { transform: translateY(3px); box-shadow: none; }
+    #playPauseBtn { background: #34495e; }
+    #prevBtn { background: #444; color: #aaa; }
 </style>
 </head>
 <body>
 
-    <canvas id="circleCanvas" width="650" height="650"></canvas>
+<div id="container">
+    <canvas id="circleCanvas" width="2000" height="2000"></canvas>
 
     <div id="controls">
-        <div id="counter">Step 1 of 4000</div>
-        <div id="moveDetails">0 → 0</div>
+        <div class="stat-box">
+            <span style="font-size: 12px; color: #888; letter-spacing: 2px;">GO TO NAIL</span>
+            <div id="moveDetails">--</div>
+            <div class="progress-bar"><div id="progressFill"></div></div>
+            <span id="percentText" style="font-size: 10px; color: #666; margin-top: 5px; display: block;">0%</span>
+        </div>
 
-        <button id="prevBtn" onclick="prevStep()">Previous</button>
-        <button id="nextBtn" onclick="nextStep()">Next</button>
-        <button id="playPauseBtn">Play</button>
-        <button id="previewBtn" onclick="previewAll()">Preview</button>
+        <div class="input-group">
+            <label style="font-size: 11px; display: block; margin-bottom: 5px; color: #aaa;">JUMP TO STEP</label>
+            <input type="number" id="stepInput" placeholder="Step #">
+            <button style="width: auto; padding: 8px 15px; font-size: 11px; background: #555;" onclick="jumpToStep()">GO</button>
+        </div>
+        
+        <button id="nextBtn" onclick="nextStep()">NEXT NAIL</button>
+        <button id="playPauseBtn" onclick="togglePlay()">AUTO PLAY</button>
+        <button id="prevBtn" onclick="prevStep()">PREVIOUS</button>
     </div>
+</div>
 
-    <script src="numbers.js"></script>
+<script src="numbers.js"></script>
 
-    <script>
-        const canvas = document.getElementById('circleCanvas');
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const radius = 310;
-        const totalPins = 288;
+<script>
+    // 1. Initial Data Check
+    if (typeof numbers === 'undefined') {
+        window.numbers = [0, 65, 125, 185, 10, 70, 130, 190]; 
+    }
 
-        let currentIndex = 0;
-        let isPlaying = false;
-        let intervalId = null;
-        const stepDelay = 10;
+    const canvas = document.getElementById('circleCanvas');
+    const ctx = canvas.getContext('2d');
+    const cx = 1000, cy = 1000, r = 700; // Scaled for 2000px resolution
+    const totalNails = 240;
 
-        const counter = document.getElementById('counter');
-        const moveDetails = document.getElementById('moveDetails');
-        const playPauseBtn = document.getElementById('playPauseBtn');
+    let currentIndex = 0;
+    let isPlaying = false;
+    let intervalId = null;
 
-        // Corrected pin positions: flipped X-axis to fix mirrored image
-        const pins = [];
-        for (let i = 0; i < totalPins; i++) {
-            const angle = (i / totalPins) * 2 * Math.PI + Math.PI;
-            pins.push({
-                x: centerX - radius * Math.cos(angle), // flipped X-axis
-                y: centerY - radius * Math.sin(angle)  // keep Y inverted for upright image
-            });
-        }
+    // 2. Mapping: 0-59(A), 60-119(D), 120-179(C), 180-239(B)
+    function getMap(idx) {
+        const i = Math.abs(idx) % 240;
+        let zone = "A";
+        if (i >= 60 && i <= 119) zone = "D";
+        else if (i >= 120 && i <= 179) zone = "C";
+        else if (i >= 180) zone = "B";
+        return { zone, nail: (i % 60) + 1 };
+    }
 
-        function drawPins() {
-            ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = 'black';
-            for (let i = 0; i < pins.length; i++) {
-                ctx.beginPath();
-                ctx.arc(pins[i].x, pins[i].y, 1.5, 0, 2 * Math.PI);
-                ctx.fill();
-            }
-        }
+    // 3. Corrected Voice Support
+    function say(zone, nail) {
+        window.speechSynthesis.cancel();
+        // Phonetical expansion to ensure correct letter pronunciation
+        const phonetic = { "A": "Zone Ay", "B": "Zone Bee", "C": "Zone See", "D": "Zone Dee" };
+        const msg = new SpeechSynthesisUtterance(`${phonetic[zone]} ${nail}`);
+        msg.rate = 0.9; // Slightly slower for clarity
+        window.speechSynthesis.speak(msg);
+    }
 
-        function drawLines(limit) {
-            ctx.lineWidth = 0.2;
+    // 4. Pre-calculate Pins (Scaled for high-res)
+    const pins = [];
+    for (let i = 0; i < totalNails; i++) {
+        const angle = (i * (360 / totalNails) - 90 + (360 / totalNails / 2)) * Math.PI / 180;
+        const map = getMap(i);
+        const isBlackZone = (map.zone === "B" || map.zone === "D");
+        pins.push({
+            x: cx + r * Math.cos(angle),
+            y: cy + r * Math.sin(angle),
+            angle, isBlackZone, label: map.nail,
+            off: (i % 2 === 0) ? 70 : 120 // Increased offset for high res
+        });
+    }
 
-            // Draw all previous lines in black
-            ctx.strokeStyle = 'black';
-            for (let i = 1; i < limit; i++) {
-                let startPin = numbers[i - 1] % totalPins;
-                let endPin = numbers[i] % totalPins;
+    function draw() {
+        ctx.clearRect(0,0,2000,2000);
+        ctx.fillStyle = "white"; ctx.fillRect(0, 0, 2000, 2000);
+        
+        // Quadrant Backgrounds
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, 1000, 1000); // B
+        ctx.fillRect(1000, 1000, 1000, 1000); // D
+        
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
 
-                ctx.beginPath();
-                ctx.moveTo(pins[startPin].x, pins[startPin].y);
-                ctx.lineTo(pins[endPin].x, pins[endPin].y);
-                ctx.stroke();
-            }
+        // Zone Titles
+        ctx.font = "bold 120px sans-serif"; ctx.textAlign = "center";
+        ctx.fillStyle = "black"; ctx.fillText("A", 1850, 150); ctx.fillText("C", 150, 1850);
+        ctx.fillStyle = "white"; ctx.fillText("D", 1850, 1850); ctx.fillText("B", 150, 150);
 
-            // Draw current step in red
-            if (limit > 0 && limit < numbers.length) {
-                let startPin = numbers[limit - 1] % totalPins;
-                let endPin = numbers[limit] % totalPins;
+        // Pins & Labels
+        pins.forEach(p => {
+            const tx = cx + (r + p.off) * Math.cos(p.angle);
+            const ty = cy + (r + p.off) * Math.sin(p.angle);
+            
+            // Leader line
+            ctx.beginPath(); 
+            ctx.moveTo(p.x, p.y); 
+            ctx.lineTo(cx + (r + p.off - 25) * Math.cos(p.angle), cy + (r + p.off - 25) * Math.sin(p.angle));
+            ctx.strokeStyle = p.isBlackZone ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)";
+            ctx.lineWidth = 2; ctx.stroke();
 
-                ctx.strokeStyle = 'red';
-                ctx.beginPath();
-                ctx.moveTo(pins[startPin].x, pins[startPin].y);
-                ctx.lineTo(pins[endPin].x, pins[endPin].y);
-                ctx.stroke();
-            }
-        }
+            // Nail
+            ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = p.isBlackZone ? "white" : "black"; ctx.fill();
 
-        function updateDisplay() {
-            drawPins();
-            drawLines(currentIndex);
-
-            counter.textContent = `Step ${currentIndex + 1} of ${numbers.length}`;
-
-            let startPin = numbers[currentIndex] % totalPins;
-            let nextPin = (currentIndex + 1 < numbers.length) ?
-                          numbers[currentIndex + 1] % totalPins : startPin;
-
-            moveDetails.textContent = `${startPin} → ${nextPin}`;
-        }
-
-        function nextStep() {
-            if (currentIndex < numbers.length - 1) {
-                currentIndex++;
-            } else pause();
-            updateDisplay();
-        }
-
-        function prevStep() {
-            if (currentIndex > 0) currentIndex--;
-            updateDisplay();
-        }
-
-        function play() {
-            isPlaying = true;
-            playPauseBtn.textContent = 'Pause';
-            intervalId = setInterval(nextStep, stepDelay);
-        }
-
-        function pause() {
-            isPlaying = false;
-            playPauseBtn.textContent = 'Play';
-            clearInterval(intervalId);
-        }
-
-        playPauseBtn.addEventListener('click', () => {
-            if (isPlaying) pause();
-            else play();
+            // Text Resolution Fix
+            ctx.font = "bold 24px Arial"; // Larger font for high-res
+            ctx.fillStyle = p.isBlackZone ? "white" : "black";
+            ctx.textBaseline = "middle";
+            ctx.fillText(p.label, tx, ty);
         });
 
-        function previewAll() {
-            pause();
-            currentIndex = numbers.length - 1;
-            updateDisplay();
+        // Thread
+        ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
+        for (let i = 1; i <= currentIndex; i++) {
+            const s = pins[numbers[i-1] % 240], e = pins[numbers[i] % 240];
+            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
         }
 
-        updateDisplay();
-    </script>
+        // Current Move
+        if (currentIndex < numbers.length - 1) {
+            const s = pins[numbers[currentIndex] % 240], e = pins[numbers[currentIndex+1] % 240];
+            ctx.strokeStyle = "red"; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x, e.y, 14, 0, Math.PI*2); ctx.fill();
+        }
 
+        // UI Update
+        const target = getMap(numbers[currentIndex + 1] || numbers[currentIndex]);
+        document.getElementById('moveDetails').textContent = `${target.zone}${target.nail}`;
+        const pct = Math.round((currentIndex / (numbers.length - 1)) * 100);
+        document.getElementById('progressFill').style.width = pct + "%";
+        document.getElementById('percentText').textContent = `${currentIndex} / ${numbers.length - 1} (${pct}%)`;
+    }
+
+    function nextStep() {
+        if (currentIndex < numbers.length - 1) {
+            currentIndex++;
+            draw();
+            const t = getMap(numbers[currentIndex]);
+            say(t.zone, t.nail);
+        }
+    }
+
+    function jumpToStep() {
+        const val = parseInt(document.getElementById('stepInput').value);
+        if (!isNaN(val) && val >= 0 && val < numbers.length) {
+            currentIndex = val;
+            draw();
+        }
+    }
+
+    function prevStep() { if (currentIndex > 0) { currentIndex--; draw(); } }
+    function togglePlay() {
+        isPlaying = !isPlaying;
+        document.getElementById('playPauseBtn').textContent = isPlaying ? "STOP" : "AUTO PLAY";
+        if (isPlaying) intervalId = setInterval(nextStep, 2000);
+        else clearInterval(intervalId);
+    }
+
+    draw();
+</script>
 </body>
 </html>
