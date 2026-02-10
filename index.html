@@ -1,213 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>String Art Pro Navigator</title>
-<style>
-    body { 
-        display: flex; justify-content: center; align-items: center; 
-        height: 100vh; margin: 0; background-color: #121212; font-family: 'Segoe UI', sans-serif;
-        color: white;
-    }
-    #container { display: flex; background: #2a2a2a; padding: 20px; border-radius: 15px; border: 1px solid #444; }
-    
-    /* High-Resolution Canvas Container */
-    canvas { 
-        background-color: white; 
-        border-radius: 5px; 
-        box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        /* Visual size is 750px, but internal resolution is 2000px */
-        width: 750px; 
-        height: 750px; 
-    }
-    
-    #controls { padding: 0 20px; width: 260px; display: flex; flex-direction: column; justify-content: center; }
-    
-    .stat-box { background: #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; border-bottom: 4px solid #f39c12; }
-    #moveDetails { font-size: 54px; font-weight: bold; color: #f39c12; margin: 10px 0; font-family: 'Courier New', monospace; }
-    
-    .input-group { margin-bottom: 15px; text-align: center; }
-    input { width: 80px; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; text-align: center; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>String Art Virtual Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        
+        body {
+            background-color: #020617;
+            color: #f8fafc;
+            font-family: 'Space Grotesk', sans-serif;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
 
-    .progress-bar { width: 100%; background: #333; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px;}
-    #progressFill { width: 0%; height: 100%; background: #f39c12; }
+        .board-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            aspect-ratio: 1/1;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            margin: 0 auto;
+        }
 
-    button { 
-        width: 100%; padding: 15px; margin: 8px 0; border: none; border-radius: 8px;
-        font-weight: bold; cursor: pointer; color: #fff; transition: 0.2s; text-transform: uppercase;
-    }
-    #nextBtn { background: #f39c12; color: #000; font-size: 20px; height: 80px; box-shadow: 0 4px 0 #d35400; }
-    #nextBtn:active { transform: translateY(3px); box-shadow: none; }
-    #playPauseBtn { background: #34495e; }
-    #prevBtn { background: #444; color: #aaa; }
-</style>
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-btn {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            min-height: 48px; /* Touch target size */
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.2);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center py-4 md:py-8 px-4">
 
-<div id="container">
-    <canvas id="circleCanvas" width="2000" height="2000"></canvas>
-
-    <div id="controls">
-        <div class="stat-box">
-            <span style="font-size: 12px; color: #888; letter-spacing: 2px;">GO TO NAIL</span>
-            <div id="moveDetails">--</div>
-            <div class="progress-bar"><div id="progressFill"></div></div>
-            <span id="percentText" style="font-size: 10px; color: #666; margin-top: 5px; display: block;">0%</span>
+    <!-- Header & Stats -->
+    <div class="w-full max-w-7xl flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 mb-6 md:mb-8">
+        <div class="text-center md:text-left">
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tighter uppercase leading-none text-white">
+                Thread and Nails
+            </h1>
         </div>
 
-        <div class="input-group">
-            <label style="font-size: 11px; display: block; margin-bottom: 5px; color: #aaa;">JUMP TO STEP</label>
-            <input type="number" id="stepInput" placeholder="Step #">
-            <button style="width: auto; padding: 8px 15px; font-size: 11px; background: #555;" onclick="jumpToStep()">GO</button>
+        <div class="flex w-full md:w-auto gap-2 md:gap-4 glass-panel p-3 md:p-4 rounded-2xl justify-around md:justify-start">
+            <div class="text-center px-4 border-r border-slate-700">
+                <p class="text-[10px] md:text-xs text-slate-500 uppercase">Progress</p>
+                <p id="percentLabel" class="text-lg md:text-xl font-bold">0%</p>
+            </div>
+            <div class="text-center px-4">
+                <p class="text-[10px] md:text-xs text-slate-500 uppercase">Step</p>
+                <p id="stepLabel" class="text-lg md:text-xl font-bold">0 / 0</p>
+            </div>
         </div>
-        
-        <button id="nextBtn" onclick="nextStep()">NEXT NAIL</button>
-        <button id="playPauseBtn" onclick="togglePlay()">AUTO PLAY</button>
-        <button id="prevBtn" onclick="prevStep()">PREVIOUS</button>
     </div>
-</div>
 
-<script src="numbers.js"></script>
+    <div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
+        
+        <!-- Canvas (Top on mobile) -->
+        <div class="lg:col-span-8 flex justify-center order-1 lg:order-2">
+            <div class="board-container">
+                <canvas id="bgCanvas"></canvas>
+                <canvas id="threadCanvas"></canvas>
+                <canvas id="uiCanvas"></canvas>
+            </div>
+        </div>
 
-<script>
-    // 1. Initial Data Check
-    if (typeof numbers === 'undefined') {
-        window.numbers = [0, 65, 125, 185, 10, 70, 130, 190]; 
-    }
+        <!-- Controls -->
+        <div class="lg:col-span-4 space-y-4 order-2 lg:order-1 no-select">
+            <div class="glass-panel p-4 md:p-6 rounded-3xl space-y-4 md:space-y-5">
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="prevBtn" class="control-btn py-3 px-4 bg-slate-700 rounded-xl font-bold text-sm">← Prev</button>
+                    <button id="nextBtn" class="control-btn py-3 px-4 bg-slate-700 rounded-xl font-bold text-sm">Next →</button>
+                    <button id="playBtn" class="control-btn py-3 px-4 bg-blue-600 rounded-xl font-bold text-sm col-span-2">▶ Play Sequence</button>
+                    <button id="previewBtn" class="control-btn py-3 px-4 bg-emerald-600 rounded-xl font-bold text-sm col-span-2">👁 Show Result</button>
+                </div>
 
-    const canvas = document.getElementById('circleCanvas');
-    const ctx = canvas.getContext('2d');
-    const cx = 1000, cy = 1000, r = 700; // Scaled for 2000px resolution
-    const totalNails = 240;
+                <div class="flex items-center gap-2">
+                    <input type="number" id="jumpInput" placeholder="Jump to..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-blue-500 min-h-[44px]">
+                    <button id="jumpBtn" class="bg-slate-700 hover:bg-slate-600 h-[44px] px-4 rounded-xl text-sm font-bold">Go</button>
+                </div>
 
-    let currentIndex = 0;
-    let isPlaying = false;
-    let intervalId = null;
+                <div class="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl">
+                    <span class="text-sm font-medium text-slate-300">Voice Guidance</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="voiceToggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
 
-    // 2. Mapping: 0-59(A), 60-119(D), 120-179(C), 180-239(B)
-    function getMap(idx) {
-        const i = Math.abs(idx) % 240;
-        let zone = "A";
-        if (i >= 60 && i <= 119) zone = "D";
-        else if (i >= 120 && i <= 179) zone = "C";
-        else if (i >= 180) zone = "B";
-        return { zone, nail: (i % 60) + 1 };
-    }
+            <!-- Current Instruction Card -->
+            <div class="glass-panel p-4 md:p-6 rounded-3xl text-center">
+                <p class="text-[10px] md:text-xs text-slate-500 uppercase mb-3 md:mb-4">Current Instruction</p>
+                <div class="flex items-center justify-center gap-4 md:gap-6">
+                    <div>
+                        <span id="curNailBox" class="text-3xl md:text-4xl font-bold text-slate-300">--</span>
+                        <p class="text-[9px] md:text-[10px] mt-1 text-slate-500 uppercase" id="curZoneLabel">From</p>
+                    </div>
+                    <div class="text-blue-500 text-xl md:text-2xl animate-pulse">→</div>
+                    <div>
+                        <span id="nextNailBox" class="text-3xl md:text-4xl font-bold text-blue-400">--</span>
+                        <p class="text-[9px] md:text-[10px] mt-1 text-slate-500 uppercase" id="nextZoneLabel">To</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    // 3. Corrected Voice Support
-    function say(zone, nail) {
-        window.speechSynthesis.cancel();
-        // Phonetical expansion to ensure correct letter pronunciation
-        const phonetic = { "A": "Zone Ay", "B": "Zone Bee", "C": "Zone See", "D": "Zone Dee" };
-        const msg = new SpeechSynthesisUtterance(`${phonetic[zone]} ${nail}`);
-        msg.rate = 0.9; // Slightly slower for clarity
-        window.speechSynthesis.speak(msg);
-    }
+    <script id="patternLoader" src="pattern.js"></script>
 
-    // 4. Pre-calculate Pins (Scaled for high-res)
-    const pins = [];
-    for (let i = 0; i < totalNails; i++) {
-        const angle = (i * (360 / totalNails) - 90 + (360 / totalNails / 2)) * Math.PI / 180;
-        const map = getMap(i);
-        const isBlackZone = (map.zone === "B" || map.zone === "D");
-        pins.push({
-            x: cx + r * Math.cos(angle),
-            y: cy + r * Math.sin(angle),
-            angle, isBlackZone, label: map.nail,
-            off: (i % 2 === 0) ? 70 : 120 // Increased offset for high res
+    <script>
+        const TOTAL_NAILS = 240;
+        const CANVAS_SIZE = 1000;
+        const RADIUS = 350;
+        const CX = 500;
+        const CY = 500;
+
+        const threadCanvas = document.getElementById('threadCanvas');
+        const uiCanvas = document.getElementById('uiCanvas');
+        const bgCanvas = document.getElementById('bgCanvas');
+        const tCtx = threadCanvas.getContext('2d');
+        const uiCtx = uiCanvas.getContext('2d');
+        const bgCtx = bgCanvas.getContext('2d');
+
+        let sequence = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let pins = [];
+
+        [threadCanvas, uiCanvas, bgCanvas].forEach(c => {
+            c.width = CANVAS_SIZE;
+            c.height = CANVAS_SIZE;
         });
-    }
 
-    function draw() {
-        ctx.clearRect(0,0,2000,2000);
-        ctx.fillStyle = "white"; ctx.fillRect(0, 0, 2000, 2000);
-        
-        // Quadrant Backgrounds
-        ctx.fillStyle = "black";
-        ctx.fillRect(0, 0, 1000, 1000); // B
-        ctx.fillRect(1000, 1000, 1000, 1000); // D
-        
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // Zone Titles
-        ctx.font = "bold 120px sans-serif"; ctx.textAlign = "center";
-        ctx.fillStyle = "black"; ctx.fillText("A", 1850, 150); ctx.fillText("C", 150, 1850);
-        ctx.fillStyle = "white"; ctx.fillText("D", 1850, 1850); ctx.fillText("B", 150, 150);
-
-        // Pins & Labels
-        pins.forEach(p => {
-            const tx = cx + (r + p.off) * Math.cos(p.angle);
-            const ty = cy + (r + p.off) * Math.sin(p.angle);
+        function initNails() {
+            pins = [];
+            const step = 360 / TOTAL_NAILS;
+            const zoneMapping = ['B', 'A', 'D', 'C'];
             
-            // Leader line
-            ctx.beginPath(); 
-            ctx.moveTo(p.x, p.y); 
-            ctx.lineTo(cx + (r + p.off - 25) * Math.cos(p.angle), cy + (r + p.off - 25) * Math.sin(p.angle));
-            ctx.strokeStyle = p.isBlackZone ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)";
-            ctx.lineWidth = 2; ctx.stroke();
+            for (let i = 0; i < TOTAL_NAILS; i++) {
+                const angleDeg = (i * step) - 180 + (step / 2);
+                const angleRad = ((angleDeg * Math.PI) / 180) + Math.PI; 
+                const quadIndex = Math.floor(i / 60);
+                const zone = zoneMapping[quadIndex];
 
-            // Nail
-            ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-            ctx.fillStyle = p.isBlackZone ? "white" : "black"; ctx.fill();
-
-            // Text Resolution Fix
-            ctx.font = "bold 24px Arial"; // Larger font for high-res
-            ctx.fillStyle = p.isBlackZone ? "white" : "black";
-            ctx.textBaseline = "middle";
-            ctx.fillText(p.label, tx, ty);
-        });
-
-        // Thread
-        ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
-        for (let i = 1; i <= currentIndex; i++) {
-            const s = pins[numbers[i-1] % 240], e = pins[numbers[i] % 240];
-            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+                pins.push({
+                    x: CX + RADIUS * Math.cos(angleRad),
+                    y: CY + RADIUS * Math.sin(angleRad),
+                    angleRad: angleRad,
+                    zone: zone,
+                    nailNum: (i % 60) + 1
+                });
+            }
         }
 
-        // Current Move
-        if (currentIndex < numbers.length - 1) {
-            const s = pins[numbers[currentIndex] % 240], e = pins[numbers[currentIndex+1] % 240];
-            ctx.strokeStyle = "red"; ctx.lineWidth = 6;
-            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
-            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x, e.y, 14, 0, Math.PI*2); ctx.fill();
+        function drawBackground() {
+            bgCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            bgCtx.fillStyle = "black";
+            bgCtx.fillRect(500, 500, 500, 500); 
+            bgCtx.fillRect(0, 0, 500, 500); 
+
+            bgCtx.beginPath();
+            bgCtx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
+            bgCtx.fillStyle = "white";
+            bgCtx.fill();
+            bgCtx.strokeStyle = "black";
+            bgCtx.lineWidth = 1;
+            bgCtx.stroke();
+
+            bgCtx.font = "bold 60px Arial";
+            bgCtx.textAlign = "center";
+            bgCtx.textBaseline = "middle";
+            
+            bgCtx.fillStyle = "#333";
+            bgCtx.fillText("A", 80, 920); 
+            bgCtx.fillText("C", 920, 80); 
+            bgCtx.fillStyle = "white";
+            bgCtx.fillText("B", 920, 920); 
+            bgCtx.fillText("D", 80, 80);   
+
+            pins.forEach((p, i) => {
+                bgCtx.beginPath();
+                bgCtx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                bgCtx.fillStyle = "black";
+                bgCtx.fill();
+
+                const offset = (i % 2 === 0) ? 32 : 54;
+                const lx = CX + (RADIUS + (offset - 10)) * Math.cos(p.angleRad);
+                const ly = CY + (RADIUS + (offset - 10)) * Math.sin(p.angleRad);
+                const tx = CX + (RADIUS + offset) * Math.cos(p.angleRad);
+                const ty = CY + (RADIUS + offset) * Math.sin(p.angleRad);
+
+                const isOverBlack = (tx < 500 && ty < 500) || (tx > 500 && ty > 500);
+
+                bgCtx.beginPath();
+                bgCtx.moveTo(p.x, p.y);
+                bgCtx.lineTo(lx, ly);
+                bgCtx.strokeStyle = isOverBlack ? "white" : "black"; 
+                bgCtx.lineWidth = 0.5;
+                bgCtx.stroke();
+
+                bgCtx.font = "bold 10px Arial";
+                bgCtx.fillStyle = isOverBlack ? "white" : "black";
+                bgCtx.fillText(p.nailNum, tx, ty);
+            });
         }
 
-        // UI Update
-        const target = getMap(numbers[currentIndex + 1] || numbers[currentIndex]);
-        document.getElementById('moveDetails').textContent = `${target.zone}${target.nail}`;
-        const pct = Math.round((currentIndex / (numbers.length - 1)) * 100);
-        document.getElementById('progressFill').style.width = pct + "%";
-        document.getElementById('percentText').textContent = `${currentIndex} / ${numbers.length - 1} (${pct}%)`;
-    }
+        const getMappedPin = (val) => {
+            if (val === undefined || val === null) return null;
+            return pins[parseInt(val) % TOTAL_NAILS];
+        };
 
-    function nextStep() {
-        if (currentIndex < numbers.length - 1) {
+        function updateDisplay() {
+            if (!sequence || sequence.length === 0) return;
+
+            const pCur = getMappedPin(sequence[currentIndex]);
+            const pNext = (currentIndex < sequence.length - 1) ? getMappedPin(sequence[currentIndex + 1]) : null;
+
+            document.getElementById('stepLabel').innerText = `${currentIndex} / ${sequence.length - 1}`;
+            document.getElementById('percentLabel').innerText = Math.round((currentIndex / (sequence.length - 1)) * 100) + '%';
+            
+            document.getElementById('curNailBox').innerText = pCur ? pCur.nailNum : '--';
+            document.getElementById('curZoneLabel').innerText = pCur ? `Zone ${pCur.zone}` : 'From';
+            
+            if (pNext) {
+                document.getElementById('nextNailBox').innerText = pNext.nailNum;
+                document.getElementById('nextZoneLabel').innerText = `Zone ${pNext.zone}`;
+            } else {
+                document.getElementById('nextNailBox').innerText = '--';
+                document.getElementById('nextZoneLabel').innerText = 'End';
+            }
+
+            drawThreads();
+            drawOverlay(pCur, pNext);
+
+            if (document.getElementById('voiceToggle').checked && !isPlaying && pNext) {
+                speakNail(pNext.zone, pNext.nailNum);
+            }
+        }
+
+        function drawThreads() {
+            tCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            if (sequence.length < 2) return;
+
+            tCtx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            tCtx.lineWidth = 0.4;
+            tCtx.beginPath();
+
+            for (let i = 0; i < currentIndex; i++) {
+                const p1 = getMappedPin(sequence[i]);
+                const p2 = getMappedPin(sequence[i + 1]);
+                if (p1 && p2) {
+                    tCtx.moveTo(p1.x, p1.y);
+                    tCtx.lineTo(p2.x, p2.y);
+                }
+            }
+            tCtx.stroke();
+        }
+
+        function drawOverlay(pCur, pNext) {
+            uiCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            if (!pCur) return;
+
+            uiCtx.beginPath();
+            uiCtx.arc(pCur.x, pCur.y, 9, 0, Math.PI * 2);
+            uiCtx.fillStyle = 'rgba(59, 130, 246, 0.7)';
+            uiCtx.fill();
+
+            if (pNext) {
+                uiCtx.beginPath();
+                uiCtx.setLineDash([6, 4]);
+                uiCtx.moveTo(pCur.x, pCur.y);
+                uiCtx.lineTo(pNext.x, pNext.y);
+                uiCtx.strokeStyle = '#ef4444';
+                uiCtx.lineWidth = 2.5;
+                uiCtx.stroke();
+                uiCtx.setLineDash([]);
+                
+                uiCtx.beginPath();
+                uiCtx.arc(pNext.x, pNext.y, 11, 0, Math.PI * 2);
+                uiCtx.strokeStyle = '#3b82f6';
+                uiCtx.lineWidth = 3.5;
+                uiCtx.stroke();
+            }
+        }
+
+        function speakNail(zone, num) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(`Zone ${zone}, Nail ${num}`);
+            msg.rate = 1.3;
+            window.speechSynthesis.speak(msg);
+        }
+
+        document.getElementById('nextBtn').onclick = () => { if (currentIndex < sequence.length - 1) { currentIndex++; updateDisplay(); } };
+        document.getElementById('prevBtn').onclick = () => { if (currentIndex > 0) { currentIndex--; updateDisplay(); } };
+        document.getElementById('playBtn').onclick = () => {
+            if (isPlaying) { isPlaying = false; document.getElementById('playBtn').innerText = "▶ Play Sequence"; }
+            else { isPlaying = true; document.getElementById('playBtn').innerText = "⏸ Pause"; autoPlay(); }
+        };
+        function autoPlay() {
+            if (!isPlaying || currentIndex >= sequence.length - 1) {
+                isPlaying = false;
+                document.getElementById('playBtn').innerText = "▶ Play Sequence";
+                return;
+            }
             currentIndex++;
-            draw();
-            const t = getMap(numbers[currentIndex]);
-            say(t.zone, t.nail);
+            updateDisplay();
+            setTimeout(autoPlay, 120);
         }
-    }
+        document.getElementById('jumpBtn').onclick = () => {
+            const val = parseInt(document.getElementById('jumpInput').value);
+            if (!isNaN(val) && val >= 0 && val < sequence.length) { currentIndex = val; updateDisplay(); }
+        };
+        document.getElementById('previewBtn').onclick = () => { currentIndex = sequence.length - 1; updateDisplay(); };
 
-    function jumpToStep() {
-        const val = parseInt(document.getElementById('stepInput').value);
-        if (!isNaN(val) && val >= 0 && val < numbers.length) {
-            currentIndex = val;
-            draw();
-        }
-    }
+        window.onload = () => {
+            initNails();
+            drawBackground();
 
-    function prevStep() { if (currentIndex > 0) { currentIndex--; draw(); } }
-    function togglePlay() {
-        isPlaying = !isPlaying;
-        document.getElementById('playPauseBtn').textContent = isPlaying ? "STOP" : "AUTO PLAY";
-        if (isPlaying) intervalId = setInterval(nextStep, 2000);
-        else clearInterval(intervalId);
-    }
-
-    draw();
-</script>
+            if (typeof PATTERN_DATA !== 'undefined' && PATTERN_DATA.length > 0) {
+                sequence = PATTERN_DATA;
+                updateDisplay();
+            }
+        };
+    </script>
 </body>
 </html>
