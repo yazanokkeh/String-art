@@ -88,7 +88,7 @@
 
     <div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
         
-        <!-- Canvas Area -->
+        <!-- Canvas -->
         <div class="lg:col-span-8 flex justify-center order-1 lg:order-2">
             <div class="board-container">
                 <canvas id="bgCanvas"></canvas>
@@ -97,11 +97,10 @@
             </div>
         </div>
 
-        <!-- Controls Area -->
+        <!-- Controls -->
         <div class="lg:col-span-4 space-y-4 order-2 lg:order-1 no-select">
             <div class="glass-panel p-4 md:p-6 rounded-3xl space-y-4">
-                <!-- AMENDED FOR MOBILE: Stacked grid for better tap targets -->
-                <div class="grid grid-cols-2 sm:grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                     <button id="prevBtn" class="control-btn bg-slate-700 font-bold text-sm">← Prev</button>
                     <button id="nextBtn" class="control-btn bg-slate-700 font-bold text-sm">Next →</button>
                     <button id="playBtn" class="control-btn bg-blue-600 font-bold text-sm col-span-2">▶ Play Sequence</button>
@@ -109,7 +108,7 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <input type="number" id="jumpInput" placeholder="Jump to move..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-blue-500 h-[48px] text-white">
+                    <input type="number" id="jumpInput" placeholder="Jump to move..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-blue-500 h-[48px]">
                     <button id="jumpBtn" class="bg-slate-700 hover:bg-slate-600 h-[48px] px-4 rounded-xl text-sm font-bold">Go</button>
                 </div>
 
@@ -122,16 +121,16 @@
                 </div>
             </div>
 
-            <!-- Current Instruction Card: AMENDED FOR MOBILE (Better centering and scale) -->
+            <!-- Current Instruction Card -->
             <div class="glass-panel p-6 rounded-3xl text-center shadow-xl">
                 <p class="text-[10px] md:text-xs text-slate-500 uppercase mb-4 tracking-widest font-bold">Next Connection</p>
-                <div class="flex items-center justify-center gap-4 sm:gap-6">
-                    <div class="flex flex-col items-center">
+                <div class="flex items-center justify-center gap-6">
+                    <div>
                         <span id="curNailBox" class="text-4xl md:text-5xl font-bold text-slate-300">--</span>
                         <p class="text-[10px] mt-1 text-slate-500 uppercase font-medium" id="curZoneLabel">From</p>
                     </div>
                     <div class="text-blue-500 text-2xl animate-pulse">→</div>
-                    <div class="flex flex-col items-center">
+                    <div>
                         <span id="nextNailBox" class="text-4xl md:text-5xl font-bold text-blue-400">--</span>
                         <p class="text-[10px] mt-1 text-slate-500 uppercase font-medium" id="nextZoneLabel">To</p>
                     </div>
@@ -280,6 +279,7 @@
             tCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
             if (sequence.length < 2) return;
 
+            // UPDATED: Line thickness and opacity adjusted for laptop clarity (delicate look)
             tCtx.strokeStyle = 'rgba(0, 0, 0, 0.45)'; 
             tCtx.lineWidth = 0.35;
             tCtx.beginPath();
